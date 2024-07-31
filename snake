@@ -18,7 +18,8 @@ imagem_maca = pygame.image.load('maca.png').convert_alpha()
 
 menu_principal = True
 fimdejogo = False
-
+nivel = 1
+velocidade = 150  # Velocidade inicial
 
 class Cobra:
     def __init__(self):
@@ -137,13 +138,12 @@ class Jogo:
     def __init__(self):
         self.cobra = Cobra()
         self.maca = Maca()
-        
+        self.pontos = 0
 
     def carregar(self):
         self.cobra.mover_cobra()
         self.colisao()
         self.perdeu()
-
 
     def desenhar_elementos(self):
         self.grama()
@@ -151,11 +151,26 @@ class Jogo:
         self.cobra.desenhar_cobra()
 
     def colisao(self):
+        global nivel, velocidade
         if self.maca.posicao == self.cobra.corpo[0]:
             self.maca.aleatorio()
             self.cobra.adicionar_bloco()
             self.cobra.cobra_comendo()
-            self.fim_de_jogo()
+            self.pontos += 1
+
+            # Alterar nível conforme a pontuação
+            if self.pontos == 10:
+                nivel = 2
+                velocidade = 100  # Aumentar velocidade
+                pygame.time.set_timer(carregar_tela, velocidade)
+            elif self.pontos == 15:
+                nivel = 3
+                velocidade = 75  # Aumentar ainda mais a velocidade
+                pygame.time.set_timer(carregar_tela, velocidade)
+            elif self.pontos == 20:
+                nivel = 4
+                velocidade = 60  # Aumentar ainda mais a velocidade
+                pygame.time.set_timer(carregar_tela, velocidade)
 
         for bloco in self.cobra.corpo[1:]:
             if bloco == self.maca.posicao:
@@ -164,18 +179,18 @@ class Jogo:
     def perdeu(self):
         if not 0 <= self.cobra.corpo[0].x < numero or not 0 <= self.cobra.corpo[0].y < numero:
             self.cobra.reiniciar()
+            self.pontos = 0
+            nivel = 1
+            velocidade = 150  # Reiniciar a velocidade
+            pygame.time.set_timer(carregar_tela, velocidade)
 
         for bloco in self.cobra.corpo[1:]:
             if bloco == self.cobra.corpo[0]:
                 self.cobra.reiniciar()
-
-    def fim_de_jogo(self):
-        global fimdejogo
-        fimjogo = fonte2.render('Fim de jogo!', True, (255, 255, 255))
-        tela.blit(fimjogo, (200, 200))
-        recomecar = fonte2.render('Precione R para reiniciar', True, (255, 255, 255))
-        tela.blit(recomecar, (200, 400))
-        fimdejogo = True
+                self.pontos = 0
+                nivel = 1
+                velocidade = 150  # Reiniciar a velocidade
+                pygame.time.set_timer(carregar_tela, velocidade)
 
     def grama(self):
         cor_grama = (167, 209, 61)
@@ -192,20 +207,16 @@ class Jogo:
                         pygame.draw.rect(tela, cor_grama, grama)
 
     def mostrar_pontos(self):
-        high_score = 0
-        pontos = str(len(self.cobra.corpo) - 3)
-        pontuacao = fonte.render(f'PONTUACAO: {pontos}', True, (255, 255, 255))
-        tela.blit(pontuacao, (2, 2))
-        maior_pontuacao = fonte.render(f'High Score: {high_score}', True, (255, 255, 255))
+        pontos = str(self.pontos)
+        pontuacao = fonte.render(f'PONTOS: {pontos} - NÍVEL: {nivel}', True, (255, 255, 255))
         tela.blit(pontuacao, (2, 2))
 
 
 carregar_tela = pygame.USEREVENT
-pygame.time.set_timer(carregar_tela, 150)
+pygame.time.set_timer(carregar_tela, velocidade)
 pygame.mixer.pre_init(44100, -16, 2, 512)
 
 jogo = Jogo()
-
 
 while True:
     for event in pygame.event.get():
@@ -233,8 +244,9 @@ while True:
                 if jogo.cobra.direcao.x != -1:
                     jogo.cobra.direcao = Vector2(1, 0)
 
-            if event.key == K_r and jogo.fim_de_jogo():
+            if event.key == K_r:
                 fimdejogo = False
+                jogo = Jogo()  # Reiniciar o jogo
 
     tela.fill((175, 215, 70))
     jogo.desenhar_elementos()
