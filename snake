@@ -9,25 +9,93 @@ pygame.init()
 tamanho = 40
 numero = 20
 
+fonte = pygame.font.SysFont('Boink Let', 30)
+fonte2 = pygame.font.SysFont('Arista', 60)
 tela = pygame.display.set_mode((tamanho * numero, tamanho * numero))
 relogio = pygame.time.Clock()
 
 imagem_maca = pygame.image.load('maca.png').convert_alpha()
 
+menu_principal = True
+fimdejogo = False
+
 
 class Cobra:
     def __init__(self):
         self.corpo = [Vector2(5, 10), Vector2(4, 10), Vector2(3, 10)]
-        self.direcao = Vector2(1, 0)
+        self.direcao = Vector2(0, 0)
         self.novo_bloco = False
 
+        self.cabeca_cima = pygame.image.load('cabeca_cima.png').convert_alpha()
+        self.cabeca_baixo = pygame.image.load('cabeca_baixo.png').convert_alpha()
+        self.cabeca_esquerda = pygame.image.load('cabeca_esquerda.png').convert_alpha()
+        self.cabeca_direita = pygame.image.load('cabeca_direita.png').convert_alpha()
+
+        self.rabo_cima = pygame.image.load('rabo_cima.png').convert_alpha()
+        self.rabo_baixo = pygame.image.load('rabo_baixo.png').convert_alpha()
+        self.rabo_esquerda = pygame.image.load('rabo_esquerda.png').convert_alpha()
+        self.rabo_direita = pygame.image.load('rabo_direita.png').convert_alpha()
+
+        self.corpo_horizontal = pygame.image.load('corpo_horizontal.png').convert_alpha()
+        self.corpo_vertical = pygame.image.load('corpo_vertical.png').convert_alpha()
+
+        self.cima_esquerda = pygame.image.load('dobra_CE.png').convert_alpha()
+        self.cima_direita = pygame.image.load('dobra_CD.png').convert_alpha()
+        self.baixo_esquerda = pygame.image.load('dobra_BE.png').convert_alpha()
+        self.baixo_direita = pygame.image.load('dobra_BD.png').convert_alpha()
+
+        self.som_cobra = pygame.mixer.Sound('som_cobra.wav')
+
     def desenhar_cobra(self):
-        for bloco in self.corpo:
+        self.sprites_cabeca()
+        self.sprites_rabo()
+
+        for index, bloco in enumerate(self.corpo):
             x_cobra = int(bloco.x * tamanho)
             y_cobra = int(bloco.y * tamanho)
             cobra = pygame.Rect(x_cobra, y_cobra, tamanho, tamanho)
-            pygame.draw.rect(tela, (0, 30, 200), cobra)
+            if index == 0:
+                tela.blit(self.cabeca, cobra)
+            elif index == len(self.corpo) - 1:
+                tela.blit(self.rabo, cobra)
+            else:
+                bloco_anterior = self.corpo[index + 1] - bloco
+                proximo_bloco = self.corpo[index - 1] - bloco
+                if bloco_anterior.x == proximo_bloco.x:
+                    tela.blit(self.corpo_vertical, cobra)
+                elif bloco_anterior.y == proximo_bloco.y:
+                    tela.blit(self.corpo_horizontal, cobra)
+                else:
+                    if bloco_anterior.x == -1 and proximo_bloco.y == -1 or bloco_anterior.y == -1 and proximo_bloco.x == -1:
+                        tela.blit(self.cima_esquerda, cobra)
+                    elif bloco_anterior.x == -1 and proximo_bloco.y == 1 or bloco_anterior.y == 1 and proximo_bloco.x == -1:
+                        tela.blit(self.baixo_esquerda, cobra)
+                    elif bloco_anterior.x == 1 and proximo_bloco.y == -1 or bloco_anterior.y == -1 and proximo_bloco.x == 1:
+                        tela.blit(self.cima_direita, cobra)
+                    elif bloco_anterior.x == 1 and proximo_bloco.y == 1 or bloco_anterior.y == 1 and proximo_bloco.x == 1:
+                        tela.blit(self.baixo_direita, cobra)
 
+    def sprites_cabeca(self):
+        relacao_cabeca = self.corpo[1] - self.corpo[0]
+        if relacao_cabeca == Vector2(0, 1):
+            self.cabeca = self.cabeca_cima
+        elif relacao_cabeca == Vector2(-1, 0):
+            self.cabeca = self.cabeca_direita
+        elif relacao_cabeca == Vector2(1, 0):
+            self.cabeca = self.cabeca_esquerda
+        elif relacao_cabeca == Vector2(0, -1):
+            self.cabeca = self.cabeca_baixo
+
+    def sprites_rabo(self):
+        relacao_rabo = self.corpo[-2] - self.corpo[-1]
+        if relacao_rabo == Vector2(0, 1):
+            self.rabo = self.rabo_baixo
+        elif relacao_rabo == Vector2(-1, 0):
+            self.rabo = self.rabo_esquerda
+        elif relacao_rabo == Vector2(1, 0):
+            self.rabo = self.rabo_direita
+        elif relacao_rabo == Vector2(0, -1):
+            self.rabo = self.rabo_cima
 
     def mover_cobra(self):
         if self.novo_bloco == True:
@@ -40,9 +108,15 @@ class Cobra:
             copia_corpo.insert(0, copia_corpo[0] + self.direcao)
             self.corpo = copia_corpo[:]
 
-
     def adicionar_bloco(self):
         self.novo_bloco = True
+
+    def cobra_comendo(self):
+        self.som_cobra.play()
+
+    def reiniciar(self):
+        self.corpo = [Vector2(5, 10), Vector2(4, 10), Vector2(3, 10)]
+        self.direcao = Vector2(0, 0)
 
 
 class Maca:
@@ -52,8 +126,6 @@ class Maca:
     def desenhar_maca(self):
         maca = pygame.Rect(int(self.posicao.x * tamanho), int(self.posicao.y * tamanho), tamanho, tamanho)
         tela.blit(imagem_maca, maca)
-        #pygame.draw.rect(tela, (200, 20, 0), maca)
-
 
     def aleatorio(self):
         self.x = randint(0, numero - 1)
@@ -65,51 +137,75 @@ class Jogo:
     def __init__(self):
         self.cobra = Cobra()
         self.maca = Maca()
+        
 
     def carregar(self):
         self.cobra.mover_cobra()
         self.colisao()
         self.perdeu()
 
+
     def desenhar_elementos(self):
+        self.grama()
         self.maca.desenhar_maca()
         self.cobra.desenhar_cobra()
-
 
     def colisao(self):
         if self.maca.posicao == self.cobra.corpo[0]:
             self.maca.aleatorio()
             self.cobra.adicionar_bloco()
-
-    def perdeu(self):
-        if not 0 <= self.cobra.corpo[0].x < numero or not 0 <= self.cobra.corpo[0].y < numero:
+            self.cobra.cobra_comendo()
             self.fim_de_jogo()
 
         for bloco in self.cobra.corpo[1:]:
+            if bloco == self.maca.posicao:
+                self.maca.aleatorio()
+
+    def perdeu(self):
+        if not 0 <= self.cobra.corpo[0].x < numero or not 0 <= self.cobra.corpo[0].y < numero:
+            self.cobra.reiniciar()
+
+        for bloco in self.cobra.corpo[1:]:
             if bloco == self.cobra.corpo[0]:
-                self.fim_de_jogo()
+                self.cobra.reiniciar()
 
     def fim_de_jogo(self):
-        pygame.quit()
-        exit()
+        global fimdejogo
+        fimjogo = fonte2.render('Fim de jogo!', True, (255, 255, 255))
+        tela.blit(fimjogo, (200, 200))
+        recomecar = fonte2.render('Precione R para reiniciar', True, (255, 255, 255))
+        tela.blit(recomecar, (200, 400))
+        fimdejogo = True
 
-    def pontos(pontos):
-        pontuacao = fonte.render('PONTUACAO: ' + str(pontos), True, (255, 255, 255))
-        tela.blit(pontuacao, (0, 0))
+    def grama(self):
+        cor_grama = (167, 209, 61)
+        for linha in range(numero):
+            if linha % 2 == 0:
+                for cor in range(numero):
+                    if cor % 2 == 0:
+                        grama = pygame.Rect(cor * tamanho, linha * tamanho, tamanho, tamanho)
+                        pygame.draw.rect(tela, cor_grama, grama)
+            else:
+                for cor in range(numero):
+                    if cor % 2 != 0:
+                        grama = pygame.Rect(cor * tamanho, linha * tamanho, tamanho, tamanho)
+                        pygame.draw.rect(tela, cor_grama, grama)
+
+    def mostrar_pontos(self):
+        high_score = 0
+        pontos = str(len(self.cobra.corpo) - 3)
+        pontuacao = fonte.render(f'PONTUACAO: {pontos}', True, (255, 255, 255))
+        tela.blit(pontuacao, (2, 2))
+        maior_pontuacao = fonte.render(f'High Score: {high_score}', True, (255, 255, 255))
+        tela.blit(pontuacao, (2, 2))
 
 
-    def recorde(recorde):
-        pontuacao = fonte.render('RECORDE: ' + str(recorde), True, (255, 255, 255))
-        tela.blit(pontuacao, (600, 0))
-
-
-recorde = 0
 carregar_tela = pygame.USEREVENT
 pygame.time.set_timer(carregar_tela, 150)
+pygame.mixer.pre_init(44100, -16, 2, 512)
 
 jogo = Jogo()
 
-fonte = pygame.font.SysFont('Boink Let', 30)
 
 while True:
     for event in pygame.event.get():
@@ -137,7 +233,11 @@ while True:
                 if jogo.cobra.direcao.x != -1:
                     jogo.cobra.direcao = Vector2(1, 0)
 
-    tela.fill((0, 100, 20))
+            if event.key == K_r and jogo.fim_de_jogo():
+                fimdejogo = False
+
+    tela.fill((175, 215, 70))
     jogo.desenhar_elementos()
+    jogo.mostrar_pontos()
     relogio.tick(60)
     pygame.display.flip()
